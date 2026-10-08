@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: >-
+  If you use this interface in research, please cite this software and identify
+  the release or commit used. Also cite NAMD, its QM/MM implementation,
+  TURBOMOLE, and any methods used, as described in REFERENCES.md.
+type: software
+title: "TURBOMOLE–NAMD QM/MM Interface"
+abstract: >-
+  A Python adapter connecting NAMD's custom QM interface to TURBOMOLE,
+  with VMD preparation templates and synthetic protocol tests.
+authors:
+  - family-names: Jiang
+    given-names: Hao
+    affiliation: "Department of Biochemistry and Biophysics, Stockholm University"
+    email: hao.jiang@dbb.su.se
+license: MIT
+keywords:
+  - QM/MM
+  - NAMD
+  - TURBOMOLE
+  - computational chemistry
