@@ -1,0 +1,31 @@
+name: Synthetic checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Tcl for template checks
+        run: sudo apt-get update && sudo apt-get install -y tcl
+      - name: Install the Python package
+        run: python -m pip install .
+      - name: Check the installed command
+        run: turbomole-namd --help
+      - name: Run synthetic and template tests
+        run: python -m unittest discover -s tests -v
+      - name: Audit the public file set
+        run: python tools/check_release.py
+      - name: Export the public source
+        run: python tools/build_release.py --output "$RUNNER_TEMP/turbomole-namd-qmmm-source.zip"
