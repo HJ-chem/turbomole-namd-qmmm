@@ -129,5 +129,24 @@ Path('pc_gradient').write_text('$point_charge_gradients\\n1.0D-03 0 0\\n-2.0D-03
         self.assertTrue((run.parent/'output_1/control').is_file())
         self.assertTrue((run.parent/'results_1/ridft0').is_file())
 
+    def test_failed_scf_does_not_leave_a_previous_result(self):
+        run = self.work/'turbo-exec'/'0'; run.mkdir(parents=True)
+        input_file = run/'qmmm_0.input'
+        input_file.write_text('1 1\n0 0 0 H\n4 0 0 0.1\n')
+        previous = Path(str(input_file) + '.result')
+        previous.write_text('previous evaluation\n')
+        scf = self.work/'failed_scf'
+        scf.write_text('#!/usr/bin/env python3\nraise SystemExit(7)\n')
+        scf.chmod(0o755)
+        env = {k:v for k,v in os.environ.items() if not k.startswith('QM_')}
+        env['PYTHONDONTWRITEBYTECODE'] = '1'
+        result = subprocess.run([sys.executable, str(ROOT/'turbomole-namd.py'),
+                                 '--coord-order', 'namd', '--scf-cmd', str(scf), str(input_file)],
+                                env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('exited with code 7', result.stderr)
+        self.assertFalse(previous.exists())
+        self.assertFalse((run/'step').exists())
+
 
 if __name__ == '__main__': unittest.main()

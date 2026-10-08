@@ -52,9 +52,8 @@ import math
 # ===========================================================================
 # Fixed TURBOMOLE I/O file names
 # ===========================================================================
-# These are dictated by TURBOMOLE itself (its executables always read/write
-# files with these exact names in the working directory) — do NOT change
-# unless you are also renaming files inside TURBOMOLE's own control file.
+# These names must match the file references in the prepared control file.
+# Change them only together with the corresponding TURBOMOLE input.
 # Centralized here purely so the rest of the script has no bare string
 # literals scattered through the logic. Not exposed as CLI flags since
 # they are never meant to vary between runs.
@@ -66,7 +65,8 @@ PC_GRADIENT_FILE   = 'pc_gradient'
 STEP_FILE          = 'step'
 
 # --- Files copied to output_N/ (wavefunction restart files) -----------------
-# These are read back by TURBOMOLE at the start of the next step.
+# The next step reuses the execution-directory files. Archives are not
+# automatically restored from output_N/.
 OUTPUT_FILES = ['alpha', 'beta', 'mos', 'basis', 'auxbasis', 'control']
 
 # --- Initialization sentinel files ------------------------------------------
@@ -119,11 +119,12 @@ def build_arg_parser():
     p.add_argument('input_file',
                     help="NAMD QM/MM input file (NAMD appends this automatically)")
     p.add_argument('--scf-cmd', default=os.environ.get('QM_SCF_CMD', 'ridft'),
-                    help="TURBOMOLE SCF executable, e.g. ridft or dscf. Falls back "
+                    help="TURBOMOLE SCF executable name or full path. Falls back "
                          "to $QM_SCF_CMD, then 'ridft'.")
     p.add_argument('--grad-cmd', default=os.environ.get('QM_GRAD_CMD', 'rdgrad'),
-                    help="TURBOMOLE gradient executable, e.g. rdgrad or ricc2. Falls "
-                         "back to $QM_GRAD_CMD, then 'rdgrad'.")
+                    help="TURBOMOLE gradient executable name or full path. Falls "
+                         "back to $QM_GRAD_CMD, then 'rdgrad'. Other module pairs "
+                         "require separate validation of the output parsers.")
     p.add_argument('--scf-log', default=os.environ.get('QM_SCF_LOG', 'ridft.log'),
                     help="SCF log filename, used for archiving & Mulliken parsing. "
                          "Falls back to $QM_SCF_LOG, then 'ridft.log'.")
@@ -798,6 +799,14 @@ def parse_turbomole_charges(log_filepath, num_qm_atoms):
 def main():
     args = build_arg_parser().parse_args()
 
+    # NAMD reuses the result pathname across evaluations. A failed new call
+    # must not leave the previous geometry's result available at that path.
+    result_filepath = os.path.abspath(args.input_file) + ".result"
+    try:
+        os.remove(result_filepath)
+    except FileNotFoundError:
+        pass
+
     charge_mode = args.charge_mode.strip().lower()
     if charge_mode == 'chelpg':
         raise RuntimeError(
@@ -1024,7 +1033,6 @@ def main():
     )
     pc_forces = expand_point_charge_forces(turbomole_pc_forces, pc_force_mapping)
 
-    result_filepath = input_filepath + ".result"
     write_namd_result(result_filepath, energy_kcalmol, forces, qm_charges, pc_forces)
 
     # ------------------------------------------------------------------
